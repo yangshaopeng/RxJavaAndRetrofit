@@ -1,13 +1,25 @@
 package com.hhmt.rxjavaandretrofit;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.hhmt.rxjavaandretrofit.net.ApiService;
+import com.hhmt.rxjavaandretrofit.net.KingTvService;
 import com.hhmt.rxjavaandretrofit.net.ServiceGenerator;
 import com.hhmt.rxjavaandretrofit.response.MultiObservable;
 import com.hhmt.rxjavaandretrofit.response.PublishBean;
+import com.hhmt.rxjavaandretrofit.response.kingtv.AppStart;
+import com.hhmt.rxjavaandretrofit.response.kingtv.Banner;
+import com.hhmt.rxjavaandretrofit.ui.banner.ConvenientBanner;
+import com.hhmt.rxjavaandretrofit.ui.banner.holder.CBViewHolderCreator;
+import com.hhmt.rxjavaandretrofit.ui.banner.holder.Holder;
+import com.hhmt.rxjavaandretrofit.ui.banner.listener.OnItemClickListener;
 
 import java.util.List;
 
@@ -24,6 +36,7 @@ public class Mainframe extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mainframe);
+        convenientBanner = (ConvenientBanner) findViewById(R.id.convenientBanner);
 
         /*----------------------------------------zip----------------------------------------*/
         /**
@@ -80,5 +93,89 @@ public class Mainframe extends AppCompatActivity {
                     }
                 });
 
+        /*----------------------------------------Banner----------------------------------------*/
+        new ServiceGenerator().createService(KingTvService.class, KingTvService.BASE_URL)
+                .getAppStartInfo()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Action1<AppStart>() {
+                    @Override
+                    public void call(AppStart appStart) {
+                        Log.i("yang", "banner success");
+                        initBanner(appStart.getBanners());
+                    }
+                });
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (convenientBanner != null && !convenientBanner.isTurning()) {
+            convenientBanner.startTurning(4000);
+        }
+    }
+
+    private ConvenientBanner<Banner> convenientBanner;
+    private List<Banner> listBanner;
+
+    private void initBanner() {
+        convenientBanner.setOnItemClickListener(new OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                clickBannerItem(listBanner.get(position));
+            }
+        });
+    }
+
+    private void clickBannerItem(Banner banner) {
+        if (banner != null) {
+            Log.i("yang", "clickBannerItem: " + banner.getTitle());
+            if (banner.isRoom()) {//如果是房间类型就点击进入房间
+                //startRoom(banner.getLink_object());
+            } else {//广告类型
+                //startWeb(banner.getTitle(),banner.getLink());
+            }
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (convenientBanner != null) {
+            convenientBanner.stopTurning();
+        }
+
+    }
+
+
+    private void initBanner(List<Banner> banners) {
+        listBanner = banners;
+        initBanner();
+        convenientBanner.setPages(new CBViewHolderCreator() {
+            @Override
+            public Holder<Banner> createHolder() {
+                return new ImageHolder();
+            }
+        }, listBanner)
+                .setPageIndicator(new int[]{R.mipmap.ic_dot_normal, R.mipmap.ic_dot_pressed})
+                .setPageIndicatorAlign(ConvenientBanner.PageIndicatorAlign.CENTER_HORIZONTAL);
+    }
+
+    public class ImageHolder implements Holder<Banner> {
+
+        private ImageView iv;
+
+        @Override
+        public View createView(Context context) {
+            iv = new ImageView(context);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            return iv;
+        }
+
+        @Override
+        public void UpdateUI(Context context, int position, Banner data) {
+            Glide.with(context).load(data.getThumb()).centerCrop().diskCacheStrategy(DiskCacheStrategy.SOURCE).into(iv);
+        }
+    }
+
 }

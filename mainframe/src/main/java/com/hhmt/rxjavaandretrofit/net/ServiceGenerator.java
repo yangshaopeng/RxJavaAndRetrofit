@@ -25,6 +25,7 @@ public class ServiceGenerator {
         if (this.retrofitBuilder == null) {
             this.retrofitBuilder = new Retrofit.Builder()
                     .baseUrl(baseUrl)
+                    .client(HttpClient.getInstance())
                     .addConverterFactory(GsonConverterFactory.create())
                     .addCallAdapterFactory(RxJavaCallAdapterFactory.create());
         } else {
