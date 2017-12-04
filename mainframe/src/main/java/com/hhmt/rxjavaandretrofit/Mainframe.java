@@ -1,10 +1,12 @@
 package com.hhmt.rxjavaandretrofit;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
@@ -16,6 +18,7 @@ import com.hhmt.rxjavaandretrofit.response.MultiObservable;
 import com.hhmt.rxjavaandretrofit.response.PublishBean;
 import com.hhmt.rxjavaandretrofit.response.kingtv.AppStart;
 import com.hhmt.rxjavaandretrofit.response.kingtv.Banner;
+import com.hhmt.rxjavaandretrofit.ui.activity.RxLifecycleActivity;
 import com.hhmt.rxjavaandretrofit.ui.banner.ConvenientBanner;
 import com.hhmt.rxjavaandretrofit.ui.banner.holder.CBViewHolderCreator;
 import com.hhmt.rxjavaandretrofit.ui.banner.holder.Holder;
@@ -65,11 +68,15 @@ public class Mainframe extends AppCompatActivity {
                 Log.i("yang", multiObservable.publishBeanObservable2.getTitle());
             }
         });
-        /*----------------------------------------flatmap----------------------------------------*/
+        /*----------------------------------------flatmap && compose----------------------------------------*/
         /**
          * http://www.jcodecraeer.com/a/anzhuokaifa/androidkaifa/2015/0309/2571.html
          * 使用场景：对一个集合的元素进行处理，虽然也可以用for循环，但这种更清晰易懂。
+         *
+         * compose:子线程和主线程监听放到一块。
+         *
          */
+
         new ServiceGenerator().createService(ApiService.class)
                 .getPublishInfo()
                 .map(new Func1<PublishBean, List<PublishBean.SubjectsBean>>() {
@@ -84,14 +91,29 @@ public class Mainframe extends AppCompatActivity {
                         return Observable.from(subjectsBeen);
                     }
                 })
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.io())
+                .compose(new Observable.Transformer<PublishBean.SubjectsBean, PublishBean.SubjectsBean>() {
+                    @Override
+                    public Observable<PublishBean.SubjectsBean> call(Observable<PublishBean.SubjectsBean> subjectsBeanObservable) {
+                        return subjectsBeanObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+                    }
+                })
+                .compose(this.<PublishBean.SubjectsBean>ioMainListener())
+                /*.observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())*/
                 .subscribe(new Action1<PublishBean.SubjectsBean>() {
                     @Override
                     public void call(PublishBean.SubjectsBean subjectsBean) {
-                        Log.i("flatmap: ", subjectsBean.getTitle());
+                        Log.i("flatmap compose: ", subjectsBean.getTitle());
                     }
                 });
+
+        /*----------------------------------------RxRecyclerLife----------------------------------------*/
+        ((Button) findViewById(R.id.rxlifecycle)).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(Mainframe.this, RxLifecycleActivity.class));
+            }
+        });
 
         /*----------------------------------------Banner----------------------------------------*/
         new ServiceGenerator().createService(KingTvService.class, KingTvService.BASE_URL)
@@ -101,10 +123,19 @@ public class Mainframe extends AppCompatActivity {
                 .subscribe(new Action1<AppStart>() {
                     @Override
                     public void call(AppStart appStart) {
-                        Log.i("yang", "banner success");
+                        Log.i("yang", "banner success ：" + appStart.toString());
                         initBanner(appStart.getBanners());
                     }
                 });
+    }
+
+    public <T> Observable.Transformer <T, T> ioMainListener() {
+        return new Observable.Transformer<T, T>() {
+            @Override
+            public Observable<T> call(Observable<T> tObservable) {
+                return tObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+            }
+        };
     }
 
     @Override
