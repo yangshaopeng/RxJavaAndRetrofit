@@ -64,8 +64,8 @@ public class Mainframe extends AppCompatActivity {
         combine.subscribe(new Action1<MultiObservable>() {
             @Override
             public void call(MultiObservable multiObservable) {
-                Log.i("yang", multiObservable.publishBeanObservable1.getTitle());
-                Log.i("yang", multiObservable.publishBeanObservable2.getTitle());
+                Log.i("yang111", multiObservable.publishBeanObservable1.getTitle());
+                Log.i("yang111", multiObservable.publishBeanObservable2.getTitle());
             }
         });
         /*----------------------------------------flatmap && compose----------------------------------------*/
