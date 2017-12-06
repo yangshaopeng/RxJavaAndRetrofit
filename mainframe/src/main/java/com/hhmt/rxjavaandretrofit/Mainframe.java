@@ -26,12 +26,14 @@ import com.hhmt.rxjavaandretrofit.ui.banner.listener.OnItemClickListener;
 
 import java.util.List;
 
-import rx.Observable;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.functions.Func2;
-import rx.schedulers.Schedulers;
+import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.ObservableTransformer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 public class Mainframe extends AppCompatActivity {
 
@@ -46,30 +48,41 @@ public class Mainframe extends AppCompatActivity {
          * 使用场景：一个页面多个请求时，将所有请求都完成后再更新页面。
          * http://www.jcodecraeer.com/a/anzhuokaifa/androidkaifa/2016/0325/4080.html
          */
-        Observable<PublishBean> publishBeanObservable1 = new ServiceGenerator().createService(ApiService.class).getPublishInfo()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.io());
+        Observable<PublishBean> publishBeanObservable1 = new ServiceGenerator().createService(ApiService.class)
+                .getPublishInfo()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
 
         Observable<PublishBean> publishBeanObservable2 = new ServiceGenerator().createService(ApiService.class).getPublishInfo()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io());
 
-        Observable<MultiObservable> combine = Observable.zip(publishBeanObservable1, publishBeanObservable2, new Func2<PublishBean, PublishBean, MultiObservable>() {
+        /**
+         * 合并两次请求。
+         */
+        Observable.zip(publishBeanObservable1, publishBeanObservable2, new BiFunction<PublishBean, PublishBean, MultiObservable>() {
             @Override
-            public MultiObservable call(PublishBean publishBean, PublishBean publishBean2) {
+            public MultiObservable apply(PublishBean publishBean, PublishBean publishBean2) throws Exception {
                 return new MultiObservable(publishBean, publishBean2);
             }
         });
 
-        combine.subscribe(new Action1<MultiObservable>() {
+        Observable<MultiObservable> combine = Observable.zip(publishBeanObservable1, publishBeanObservable2, new BiFunction<PublishBean, PublishBean, MultiObservable>() {
             @Override
-            public void call(MultiObservable multiObservable) {
+            public MultiObservable apply(PublishBean publishBean, PublishBean publishBean2) throws Exception {
+                return new MultiObservable(publishBean, publishBean2);
+            }
+        });
+
+        combine.subscribe(new Consumer<MultiObservable>() {
+            @Override
+            public void accept(MultiObservable multiObservable) throws Exception {
                 Log.i("yang", multiObservable.publishBeanObservable1.getTitle());
                 Log.i("yang", multiObservable.publishBeanObservable2.getTitle());
             }
         });
-        /*----------------------------------------flatmap && compose----------------------------------------*/
-        /**
+        /*----------------------------------------flatmap && compose----------------------------------------*//*
+       /**
          * http://www.jcodecraeer.com/a/anzhuokaifa/androidkaifa/2015/0309/2571.html
          * 使用场景：对一个集合的元素进行处理，虽然也可以用for循环，但这种更清晰易懂。
          *
@@ -79,30 +92,22 @@ public class Mainframe extends AppCompatActivity {
 
         new ServiceGenerator().createService(ApiService.class)
                 .getPublishInfo()
-                .map(new Func1<PublishBean, List<PublishBean.SubjectsBean>>() {
+                .map(new Function<PublishBean, List<PublishBean.SubjectsBean>>() {
                     @Override
-                    public List<PublishBean.SubjectsBean> call(PublishBean publishBean) {
+                    public List<PublishBean.SubjectsBean> apply(PublishBean publishBean) throws Exception {
                         return publishBean.getSubjects();
                     }
                 })
-                .flatMap(new Func1<List<PublishBean.SubjectsBean>, Observable<PublishBean.SubjectsBean>>() {
+                .flatMap(new Function<List<PublishBean.SubjectsBean>, Observable<PublishBean.SubjectsBean>>() {
                     @Override
-                    public Observable<PublishBean.SubjectsBean> call(List<PublishBean.SubjectsBean> subjectsBeen) {
-                        return Observable.from(subjectsBeen);
-                    }
-                })
-                .compose(new Observable.Transformer<PublishBean.SubjectsBean, PublishBean.SubjectsBean>() {
-                    @Override
-                    public Observable<PublishBean.SubjectsBean> call(Observable<PublishBean.SubjectsBean> subjectsBeanObservable) {
-                        return subjectsBeanObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+                    public Observable<PublishBean.SubjectsBean> apply(List<PublishBean.SubjectsBean> subjectsBeen) throws Exception {
+                        return null;
                     }
                 })
                 .compose(this.<PublishBean.SubjectsBean>ioMainListener())
-                /*.observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.io())*/
-                .subscribe(new Action1<PublishBean.SubjectsBean>() {
+                .subscribe(new Consumer<PublishBean.SubjectsBean>() {
                     @Override
-                    public void call(PublishBean.SubjectsBean subjectsBean) {
+                    public void accept(PublishBean.SubjectsBean subjectsBean) throws Exception {
                         Log.i("flatmap compose: ", subjectsBean.getTitle());
                     }
                 });
@@ -120,20 +125,20 @@ public class Mainframe extends AppCompatActivity {
                 .getAppStartInfo()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
-                .subscribe(new Action1<AppStart>() {
+                .subscribe(new Consumer<AppStart>() {
                     @Override
-                    public void call(AppStart appStart) {
+                    public void accept(AppStart appStart) throws Exception {
                         Log.i("yang", "banner success ：" + appStart.toString());
                         initBanner(appStart.getBanners());
                     }
                 });
     }
 
-    public <T> Observable.Transformer <T, T> ioMainListener() {
-        return new Observable.Transformer<T, T>() {
+    public <T> ObservableTransformer<T, T> ioMainListener() {
+        return new ObservableTransformer<T, T>() {
             @Override
-            public Observable<T> call(Observable<T> tObservable) {
-                return tObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+            public ObservableSource<T> apply(Observable<T> upstream) {
+                return upstream.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
             }
         };
     }

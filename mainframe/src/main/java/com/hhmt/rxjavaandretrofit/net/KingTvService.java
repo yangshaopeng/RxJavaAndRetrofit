@@ -2,8 +2,8 @@ package com.hhmt.rxjavaandretrofit.net;
 
 import com.hhmt.rxjavaandretrofit.response.kingtv.AppStart;
 
+import io.reactivex.Observable;
 import retrofit2.http.GET;
-import rx.Observable;
 
 /**
  * author    : yangshaopeng
