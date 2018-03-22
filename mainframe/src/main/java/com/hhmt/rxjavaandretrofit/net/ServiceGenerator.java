@@ -15,7 +15,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ServiceGenerator {
 
-    public String BASE_URL = "https://api.douban.com/v344123424/";
+    public String BASE_URL = "https://api.douban.com/v2/";
 
     private Retrofit.Builder retrofitBuilder;
 
